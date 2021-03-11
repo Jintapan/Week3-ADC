@@ -48,10 +48,12 @@ UART_HandleTypeDef huart2;
 uint16_t adcdata[2] = { 0 };
 uint8_t ADCMode = 0;
 uint32_t ADCOutputConverted = 0;
+uint32_t TTimestamp = 0;
+GPIO_PinState SWstate1[2];
 
 typedef struct {
 	ADC_ChannelConfTypeDef Config;
-	uint32_t data;
+	uint16_t data;
 } ADCStructure;
 
 ADCStructure ADCChannel[2] = { 0 };
@@ -85,7 +87,7 @@ int main(void) {
 	/* MCU Configuration--------------------------------------------------------*/
 
 	/* Reset of all peripherals, Initializes the Flash interface and the Systick. */
- 	HAL_Init();
+	HAL_Init();
 
 	/* USER CODE BEGIN Init */
 
@@ -110,7 +112,19 @@ int main(void) {
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
 	while (1) {
-
+		if (HAL_GetTick() - TTimestamp >= 100) {
+			TTimestamp = HAL_GetTick();
+			SWstate1[0] = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_10);
+			if (SWstate1[1] == GPIO_PIN_RESET && SWstate1[0] == GPIO_PIN_SET) {
+					if(ADCMode == 0){
+						ADCMode = 1;
+					}
+					else {
+						ADCMode = 0;
+					}
+			}
+			SWstate1[1] = SWstate1[0];
+		}
 		/* USER CODE END WHILE */
 
 		/* USER CODE BEGIN 3 */
@@ -297,9 +311,8 @@ void ADCPollingMethodUpdate() {
 	for (int i = 0; i < 2; i++) {
 		HAL_ADC_ConfigChannel(&hadc1, &ADCChannel[i].Config);
 		HAL_ADC_Start(&hadc1);
-		if(HAL_ADC_PollForConversion(&hadc1, 10) == HAL_OK){
-			ADCChannel[i].data = HAL_ADC_GetValue(&hadc1);
-		}
+		HAL_ADC_PollForConversion(&hadc1, 10);
+		ADCChannel[i].data = HAL_ADC_GetValue(&hadc1);
 		HAL_ADC_Stop(&hadc1);
 	}
 }
